@@ -23,10 +23,19 @@ def train_model():
     model.compile(
         optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"]
     )
+    history = model.fit(x_train, y_train, epochs=5, validation_data=(x_test, y_test))
     model.fit(x_train, y_train, epochs=5)  # użyj verbose=0 jeśli jest problem z konsolą
     model.evaluate(x_test, y_test)
 
     model.save(model_path)
+
+    plt.plot(history.history["accuracy"], label="accuracy (train)")
+    plt.plot(history.history["val_accuracy"], label="accuracy (val)")
+    plt.xlabel("Epoka")
+    plt.ylabel("Dokładność")
+    plt.title("Krzywa uczenia")
+    plt.legend()
+    plt.show()
     return model
 
 
@@ -35,12 +44,17 @@ def load_model():
 
 
 def predict_image(model, image_path):
-    image = tf.keras.utils.load_img(image_path)
+    image = tf.keras.utils.load_img(
+        image_path, color_mode="grayscale", target_size=(28, 28)
+    )
     input_arr = tf.keras.utils.img_to_array(image)
-    input_arr = np.array([input_arr])  # Convert single image to a batch.
+    input_arr = input_arr / 255.0
+    input_arr = np.expand_dims(input_arr, axis=0)
 
     predictions = model.predict(input_arr)
-    return predictions
+    predicted_class = np.argmax(predictions)
+    print(f"Rozpoznana cyfra: {predicted_class}")
+    return predicted_class
 
 
 def main():
