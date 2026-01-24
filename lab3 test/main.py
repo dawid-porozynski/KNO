@@ -128,6 +128,8 @@ def predict_mode():
     print(f"Klasa wina: {klasa}")
     print(f"Pewność:    {pewnosc:.1%}")
 
+
+# --- MAIN ---
 if __name__ == "__main__":
     # Jeśli są argumenty -> Predykcja. Jeśli nie ma -> Trening.
     if len(sys.argv) > 1:
