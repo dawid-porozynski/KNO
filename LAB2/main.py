@@ -23,6 +23,10 @@ def rotate_points(points, degrees):
 
 '''
 zad3
+=======
+
+# zad3
+>>>>>>> 07ac045541b99a51b0f36797fb862c78d5f2832d
 def solve_linear(A, b):
     A = tf.cast(A, dtype=tf.float32)
     b = tf.cast(b, dtype=tf.float32)
