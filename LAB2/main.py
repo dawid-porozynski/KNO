@@ -2,7 +2,6 @@ import argparse
 import tensorflow as tf
 import numpy as np
 
-@tf.function
 def rotate_points(points, degrees):
     # Zamiana stopni na radiany
     theta = degrees * np.pi / 180.0
@@ -23,7 +22,6 @@ def rotate_points(points, degrees):
 
 
 # zad3
-@tf.function
 def solve_linear(A, b):
     A = tf.cast(A, dtype=tf.float32)
     b = tf.cast(b, dtype=tf.float32)
