@@ -2,7 +2,6 @@ import argparse
 import tensorflow as tf
 import numpy as np
 
-
 def rotate_points(points, degrees):
     # Zamiana stopni na radiany
     theta = degrees * np.pi / 180.0
@@ -24,9 +23,20 @@ def rotate_points(points, degrees):
 '''
 zad3
 =======
+    rotation_matrix = tf.stack([
+        [tf.cos(theta), -tf.sin(theta)],
+        [tf.sin(theta), tf.cos(theta)]
+    ])
+
+    # Bezpiecznik typów danych
+    points = tf.cast(points, dtype=tf.float32)
+
+    # Mnożenie macierzy
+    return tf.matmul(points, rotation_matrix)
+
 
 # zad3
->>>>>>> 07ac045541b99a51b0f36797fb862c78d5f2832d
+
 def solve_linear(A, b):
     A = tf.cast(A, dtype=tf.float32)
     b = tf.cast(b, dtype=tf.float32)
