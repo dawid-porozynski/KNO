@@ -1,80 +1,97 @@
 import tensorflow as tf
-from tensorflow.keras import layers, models, Input
 import matplotlib.pyplot as plt
 
-DATA_DIR = 'dataset_images'
+DATA_DIR = "dataset_images"
 IMG_SIZE = (128, 128)
 BATCH_SIZE = 16
-LATENT_DIM = 2
-EPOCHS = 50
+LATENT_DIM = 128
+EPOCHS = 20
 
 
 def main():
     ds = tf.keras.utils.image_dataset_from_directory(
         DATA_DIR,
-        label_mode=None,
+        label_mode=None,  # Usuwamy etykiety
         image_size=IMG_SIZE,
         batch_size=BATCH_SIZE,
-        shuffle=True
+        shuffle=True,
     )
 
-    aug_layers = tf.keras.Sequential([
-        layers.Rescaling(1. / 255),  #normalizacja
-        layers.RandomFlip("horizontal"),
-        layers.RandomRotation(0.1),
-        layers.RandomZoom(0.1),
-    ])
+    # Modyfikacja obrazu
+    aug_layers = tf.keras.Sequential(
+        [
+            tf.keras.layers.Rescaling(1.0 / 255),  # normalizacja
+            tf.keras.layers.RandomFlip("horizontal"),
+            tf.keras.layers.RandomRotation(0.1),
+            tf.keras.layers.RandomZoom(0.1),
+        ]
+    )
     # Warstwa tylko do normalizacji
-    norm_layer = layers.Rescaling(1. / 255)
+    norm_layer = tf.keras.layers.Rescaling(1.0 / 255)
 
-    # Dzięki temu sieć uczy się "naprawiać" i generować ładne obrazki
+    # niekształcony obraz i czysty obraz
     ds = ds.map(lambda x: (aug_layers(x), norm_layer(x)))
 
-    # Budowa Autoenkodera
-    input_img = Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
+    # Osobny Enkoder
+    encoder_input = tf.keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
+    x = tf.keras.layers.Conv2D(32, 3, activation="relu", strides=2, padding="same")(encoder_input)
+    x = tf.keras.layers.Conv2D(64, 3, activation="relu", strides=2, padding="same")(x)
+    x = tf.keras.layers.Flatten()(x)
+    encoder_output = tf.keras.layers.Dense(LATENT_DIM, name="latent_space")(x)  # Wąskie gardło
 
-    # Enkoder
-    x = layers.Conv2D(32, 3, activation='relu', strides=2, padding='same')(input_img)
-    x = layers.Conv2D(64, 3, activation='relu', strides=2, padding='same')(x)
-    x = layers.Flatten()(x)
-    encoded = layers.Dense(LATENT_DIM, name="latent_space")(x)  # Wąskie gardło (2 wymiary)
+    # model enkodera
+    encoder = tf.keras.models.Model(encoder_input, encoder_output, name="encoder")
 
-    x = layers.Dense(32 * 32 * 64, activation='relu')(encoded)
-    x = layers.Reshape((32, 32, 64))(x)
-    x = layers.Conv2DTranspose(64, 3, activation='relu', strides=2, padding='same')(x)
-    x = layers.Conv2DTranspose(32, 3, activation='relu', strides=2, padding='same')(x)
-    decoded = layers.Conv2DTranspose(3, 3, activation='sigmoid', padding='same')(x)
+    # Osobny dekoder
+    decoder_input = tf.keras.Input(shape=(LATENT_DIM,))
+    # Dekoder rekonstrukcja
+    x = tf.keras.layers.Dense(32 * 32 * 64, activation="relu")(decoder_input)
+    x = tf.keras.layers.Reshape((32, 32, 64))(x)
+    x = tf.keras.layers.Conv2DTranspose(64, 3, activation="relu", strides=2, padding="same")(x)
+    x = tf.keras.layers.Conv2DTranspose(32, 3, activation="relu", strides=2, padding="same")(x)
+    decoder_output = tf.keras.layers.Conv2DTranspose(3, 3, activation="sigmoid", padding="same")(x)
 
-    # Składamy model
-    autoencoder = models.Model(input_img, decoded)
-    autoencoder.compile(optimizer='adam', loss='mse')
-    autoencoder.summary()
+    # model dekodera
+    decoder = tf.keras.models.Model(decoder_input, decoder_output, name="decoder")
 
-    # Trening
-    print("Rozpoczynam trening...")
-    autoencoder.fit(ds, epochs=EPOCHS)
+    # Polaczenie do treningu
+    training_input = tf.keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
+    latent_code = encoder(training_input)
+    reconstruction = decoder(latent_code)
+
+    # Model pomocniczy
+    trainer = tf.keras.models.Model(training_input, reconstruction, name="trainer")
+
+    trainer.compile(optimizer="adam", loss="mean_squared_error")
+    trainer.summary()
+
+    trainer.fit(ds, epochs=EPOCHS)
 
     sample_batch = next(iter(ds))
+    original_imgs = sample_batch[0][:5]
 
-    augmented_imgs = sample_batch[0][:5]
+    # Uzycie osobnych modeli
+    codes = encoder.predict(original_imgs)  # Enkoder
+    reconstructed_imgs = decoder.predict(codes)  # Dekoder
 
-    reconstructed = autoencoder.predict(augmented_imgs)
+    print({codes.shape})
+    print(codes[0])
 
     plt.figure(figsize=(10, 4))
     for i in range(5):
         # gorny rzad
         plt.subplot(2, 5, i + 1)
-        plt.imshow(augmented_imgs[i])
+        plt.imshow(original_imgs[i])
         plt.title("Wejście")
         plt.axis("off")
 
         # dolny rzad
         plt.subplot(2, 5, i + 1 + 5)
-        plt.imshow(reconstructed[i])
+        plt.imshow(reconstructed_imgs[i])
         plt.title("Wynik")
         plt.axis("off")
 
-    plt.show()
+        plt.show()
 
 
 if __name__ == "__main__":
